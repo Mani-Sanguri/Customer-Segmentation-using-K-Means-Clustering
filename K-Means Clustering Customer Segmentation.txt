@@ -1,0 +1,97 @@
+    Column       Non-Null Count   Dtype         
+---  ------       --------------   -----         
+ 0   Invoice      525461 non-null  object        
+ 1   StockCode    525461 non-null  object        
+ 2   Description  522533 non-null  object        
+ 3   Quantity     525461 non-null  int64         
+ 4   InvoiceDate  525461 non-null  datetime64[ns]
+ 5   Price        525461 non-null  float64       
+ 6   Customer ID  417534 non-null  float64       
+ 7   Country      525461 non-null  object  
+
+Insights for Data Cleaning:
+1. CustomerID has some missing data (null values)
+2. InvoiceDate is already datetime
+3. Quantity and Price have negative values
+4. CustomerID has null records
+5. Number of unique stock codes is greater than the number of unique descriptions meaning that some of descriptions might be repeated with some formatting error
+6. Number of unique invoice is greater than the count of them
+7. Some of these data have negative value of quantity and even with legit looking transactions, if there are no customerid we can't categorise the data as it is not possible for us to know which customer it was
+8. In description it was written if the invoice started with a 'C' it denoted a cancelled order
+9. Need to exclude from clustering: DCGS, D, DOT, M or m, C2, Bank Charges, S, TESTXXX
+10. Need to exclude overall: C3, giftXXX, SP1002, AMAZONFEE, ADJUSTX
+11. Include: PADS (legit stock code for padding)
+12. Descriptions and Country are not particularly useful in our analysis so we can exclude
+
+After data cleaning, 77.5% of the data is kept and remaining is deleted
+
+Identify outliers as otherwise the centroids may never be able to find outliers and hence cluster would never be formed (as would never find stability) 
+Insights:
+1. Recency has a good boxplot, no outliers are present
+2. Monetary value's boxplot is completely squished, outliers are present, right-skewed data
+3. Frequency boxplot also has outliers
+4. 1st and 2nd graph, we have outliers
+
+(We can't ignore outliers as these are customers who have spent a lot or very frequently, to understand the most valuable customers)
+
+Strategy: 
+1. Seperate out the outliers for seperate categorisation and analysis 
+2. Remaining data for k-means clustering
+   
+(IQR Method for seperating outliers)
+
+Note: Some of frequency outliers would also be monetary value outliers 
+So basically 3 blocks would there only monetary outliers, only frequency outliers and both F&M outliers
+
+Standard scaling: Transforms the features of your data to have a mean of 0 and a standard deviation of 1, to ensure that each feature contributes equally to the analysis 
+z=(x-mean)/stnd dev
+
+K-Means Clustering:
+1. No of centroid will be determined by the no of clusters and to determine the number of centroids, find a point where the centers are stable. And also the average distance between the centers is minimised. The distance is known as inertia.
+2. To find that, try a whole different value of K and see what the inertia for each of these is and then determine the value of K from them.
+
+Insights: Elbow comes at k = 4 or 5 after which there is not much point in allocating more clusters as it achieves stability
+To decide between 4 and 5, using silhouette score method:
+s(i)=(b(i)-a(i))/max(a(i),b(i))
+where, s(i) = sillhouette score
+a(i) = average distance between i and all other points in the same cluster
+b(i) = minimum average distance between i and all the points in the nearest cluster to which i doesn't belong
+
+Silhouette score ranges between [-1,1], a higher value indicates more distant clusters
+High Silhouette score will near that there is not a lot of overlap between your clusters, so which implies a higher score is good and lower score means that there is a lot of overlap. 
+The K=4 has a slightly better silhouette score which means that it will have a slightly lesser overlap so going for K=4
+
+Clustering into 4 segments (doesn't contain outliers):
+1. Cluster 0 (Blue): "Retain"
+* Rationale: This cluster represents high-value customers who purchase regularly, though not always very recently. The focus should be on retention efforts to maintain their loyalty and spending levels.
+* Action: Implement loyalty programs, personalized offers, and regular engagement to ensure they remain active.
+2. Cluster 1 (Orange): "Re-Engage"
+* Rationale: This group includes lower-value, infrequent buyers who haven’t purchased recently. The focus should be on re-engagement to bring them back into active purchasing behavior.
+* Action: Use targeted marketing campaigns, special discounts, or reminders to encourage them to return and purchase again.
+3. Cluster 2 (Green): "Nurture"
+* Rationale: This cluster represents the least active and lowest-value customers, but they have made recent purchases. These customers may be new or need nurturing to increase their engagement and spending.
+* Action: Focus on building relationships, providing excellent customer service, and offering incentives to encourage more frequent purchases.
+4. Cluster 3 (Red): "Reward"
+* Rationale: This cluster includes high-value, very frequent buyers, many of whom are still actively purchasing. They are your most loyal customers, and rewarding their loyalty is key to maintaining their engagement.
+* Action: Implement a robust loyalty program, provide exclusive offers, and recognize their loyalty to keep them engaged and satisfied.
+
+**Summary of Cluster Names:**
+* Cluster 0 (Blue): "Retain"
+* Cluster 1 (Orange): "Re-Engage"
+* Cluster 2 (Green): "Nurture"
+* Cluster 3 (Red): "Reward"
+
+Segmentation for Outliers: 
+* Cluster -1 (Monetary Outliers) PAMPER:
+Characteristics: High spenders but not necessarily frequent buyers. Their purchases are large but infrequent.
+Potential Strategy: Focus on maintaining their loyalty with personalized offers or luxury services that cater to their high spending capacity.
+* Cluster -2 (Frequency Outliers) UPSELL:
+Characteristics: Frequent buyers who spend less per purchase. These customers are consistently engaged but might benefit from upselling opportunities.
+Potential Strategy: Implement loyalty programs or bundle deals to encourage higher spending per visit, given their frequent engagement.
+* Cluster -3 (Monetary & Frequency Outliers) DELIGHT:
+Characteristics: The most valuable outliers, with extreme spending and frequent purchases. They are likely your top-tier customers who require special attention.
+Potential Strategy: Develop VIP programs or exclusive offers to maintain their loyalty and encourage continued engagement.
+
+Recommendations:
+1. Nurture has the highest count => Most focus needs to be done here
+2. Since the monetary value for delight is too high need to scale the monetary value column so as to make effective note of the other 2 variables or else they would be squished => dividing by 100
